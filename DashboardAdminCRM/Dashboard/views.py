@@ -57,8 +57,8 @@ def calculate_kpi(request):
     if end_date:
         date_filter['invoiceDate__lte'] = end_date
         date_filter_prev['invoiceDate__lte'] = end_date - relativedelta(months=1)
-    print('date_filter = ', date_filter)
-    print('date_filter_prev = ', date_filter_prev)
+    # print('date_filter = ', date_filter)
+    # print('date_filter_prev = ', date_filter_prev)
 
     # Realizar consultas en la base de datos
     sales = SaleDetail.objects(**date_filter)  # Aplicar el filtro de fecha
@@ -69,27 +69,26 @@ def calculate_kpi(request):
     unique_contact_ids_prev = SaleDetail.objects(**date_filter_prev).distinct('contactId')
     unique_contact_count = len(unique_contact_ids)
     unique_contact_count_prev = len(unique_contact_ids_prev)
-    print('cantidad contactos = ', unique_contact_count)
-    print('cantidad contactos prev = ', unique_contact_count_prev)
+    # print('cantidad contactos = ', unique_contact_count)
+    # print('cantidad contactos prev = ', unique_contact_count_prev)
 
     # Convertir ambas listas a conjuntos y encontrar la intersección
     current_set = set(unique_contact_ids)
     prev_set = set(unique_contact_ids_prev)
     common_contact_ids = current_set.intersection(prev_set)
     common_contact_ids_count = len(common_contact_ids)
-    print('cantidad contactos inter= ', common_contact_ids_count)
+    # print('cantidad contactos inter= ', common_contact_ids_count)
 
     # cálculo del KPI tasa de retencion de clientes, mide el porcentaje de clientes que 
     # volvieron a realizar una compra luego de realizar una en el mes pasado 
     tasa_retencion_clientes = (common_contact_ids_count / unique_contact_count_prev) * 100
 
-    # Resultado del KPI
     kpi_result = {
         'start_date': start_date_str,
         'end_date': end_date_str,
         'tasa_retencion_clientes': tasa_retencion_clientes,
     }
-    print('kpi respuesta: ', kpi_result)
+    # print('kpi respuesta: ', kpi_result)
 
     return JsonResponse(kpi_result)
 

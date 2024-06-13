@@ -1,0 +1,12 @@
+services:
+  - type: web
+    runtime: python
+    name: DashboardAdminCRM
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "gunicorn DashboardAdminCRM.wsgi:application"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        value: "django-insecure-a3=sbw*2_+-kc8=&upl^qesg4ex9zf5t3estqewkln)j*mq&!z"
+      - key: DATABASE_URL
+        value: "mongodb+srv://JonatanPachecoWin:muDLqmlfAcERZVHw@cluster0.8inyyov.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
