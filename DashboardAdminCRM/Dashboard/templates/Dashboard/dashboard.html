@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPI Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Tasa de Retencion de Clientes</h1>
+    <p>
+        mide el porcentaje de clientes que hicieron una compra el periodo
+        pasado y volvieron a realizar una compra en el periodo seleccionado
+    </p>
+    <label for="start_date">Fecha inicial:</label>
+    <input type="date" id="start_date" name="start_date">
+    
+    <label for="end_date">Fecha final:</label>
+    <input type="date" id="end_date" name="end_date">
+    
+    <button id="calculate-btn">Calcular indicador</button>
+
+    <div width="200" height="100">
+        <canvas id="kpi-chart" width="200" height="100"></canvas>
+
+        <script>
+            document.getElementById('calculate-btn').addEventListener('click', function() {
+                const startDate = document.getElementById('start_date').value;
+                const endDate = document.getElementById('end_date').value;
+
+                fetchKpis(startDate, endDate);
+            });
+
+            function fetchKpis(startDate, endDate) {
+                const urls = [];
+                const labels = [];
+
+                for (let i = 0; i < 5; i++) {
+                    const currentStartDate = new Date(startDate);
+                    currentStartDate.setMonth(currentStartDate.getMonth() - i);
+                    const currentEndDate = new Date(endDate);
+                    currentEndDate.setMonth(currentEndDate.getMonth() - i);
+                    
+                    const formattedStartDate = currentStartDate.toISOString().split('T')[0];
+                    const formattedEndDate = currentEndDate.toISOString().split('T')[0];
+                    
+                    urls.push(`/dashboard/calculate-kpi?start_date=${formattedStartDate}&end_date=${formattedEndDate}`);
+                    labels.push(formatDateToMonthYear(formattedStartDate));
+                }
+
+                Promise.all(urls.map(url => fetch(url).then(response => response.json())))
+                    .then(dataArray => {
+                        const ctx = document.getElementById('kpi-chart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: labels.reverse(),
+                                datasets: [{
+                                    label: '% de retencion de clientes',
+                                    data: dataArray.map(data => data.tasa_retencion_clientes).reverse(),
+                                    backgroundColor: [
+                                        'rgba(75, 192, 192, 0.2)',
+                                        'rgba(75, 192, 192, 0.2)',
+                                        'rgba(75, 192, 192, 0.2)',
+                                        'rgba(75, 192, 192, 0.2)',
+                                        'rgba(75, 192, 192, 0.2)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(75, 192, 192, 1)',
+                                        'rgba(75, 192, 192, 1)',
+                                        'rgba(75, 192, 192, 1)',
+                                        'rgba(75, 192, 192, 1)',
+                                        'rgba(75, 192, 192, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        min: 0,
+                                        max: 100
+                                    }
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+
+            function formatDateToMonthYear(dateStr) {
+                const options = { year: 'numeric', month: 'long' };
+                return new Date(dateStr).toLocaleDateString(undefined, options);
+            }
+
+            window.onload = function() {
+                const defaultStartDate = '{{ default_start_date }}';
+                const defaultEndDate = '{{ default_end_date }}';
+                document.getElementById('start_date').value = defaultStartDate;
+                document.getElementById('end_date').value = defaultEndDate;
+                fetchKpis(defaultStartDate, defaultEndDate);
+            };
+        </script>
+    </div>
+    
+</body>
+</html>
