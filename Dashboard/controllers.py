@@ -67,7 +67,7 @@ def kpi_dashboard(request):
     else:
         default_start_date = '2022-01-01'
         default_end_date = '2022-01-31'
-    return render(request, 'dashboard/dashboard.html', {
+    return render(request, 'dashboard.html', {
         'default_start_date': default_start_date,
         'default_end_date': default_end_date
     })
