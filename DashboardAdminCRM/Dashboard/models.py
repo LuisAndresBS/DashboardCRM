@@ -41,4 +41,14 @@ class User(mongoengine.Document):
 
     meta = {'collection': 'user'}
 
+class Lead(mongoengine.Document):
+    id = mongoengine.ObjectIdField(primary_key=True)
+    title = mongoengine.StringField(required=True)
+    description = mongoengine.StringField(required=True)
+    userId = mongoengine.StringField(required=True)
+    contactId = mongoengine.StringField(required=True)
+    value = mongoengine.IntField(required=True)
+    status = mongoengine.StringField(required=True)
+    createdAt = mongoengine.DateTimeField(required=True)
 
+    meta = {'collection': 'leads'}

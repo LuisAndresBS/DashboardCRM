@@ -1,40 +1,8 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Contact, Product, SaleDetail, User
+from .models import Contact, Product, SaleDetail, User, Lead
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-
-def test_db(request):
-    # Crear y guardar un nuevo contacto
-    new_contact = Contact(
-        id="00001",
-        name="Luis Andres",
-        email="LuisAndres@example.com",
-        phone="79803285",
-        address="his home",
-        createdAt=datetime.utcnow()
-    )
-    new_contact.save()
-
-    # Recuperar todos los contactos
-    contacts = Contact.objects()
-    
-    # Devolver los contactos como JSON
-    return JsonResponse({'contacts': list(contacts.values())})
-
-def test_products(request):
-    # Crear y guardar un nuevo producto
-    new_product = Product(
-        id=2,
-        description="Test Product Description"
-    )
-    new_product.save()
-
-    # Recuperar todos los productos
-    products = Product.objects()
-    
-    # Devolver los productos como JSON
-    return JsonResponse({'products': list(products.values())})
 
 def calculate_kpi(request):
     # Obtener parámetros de fecha desde la solicitud
@@ -57,8 +25,6 @@ def calculate_kpi(request):
     if end_date:
         date_filter['invoiceDate__lte'] = end_date
         date_filter_prev['invoiceDate__lte'] = end_date - relativedelta(months=1)
-    # print('date_filter = ', date_filter)
-    # print('date_filter_prev = ', date_filter_prev)
 
     # Realizar consultas en la base de datos
     sales = SaleDetail.objects(**date_filter)  # Aplicar el filtro de fecha
@@ -69,8 +35,6 @@ def calculate_kpi(request):
     unique_contact_ids_prev = SaleDetail.objects(**date_filter_prev).distinct('contactId')
     unique_contact_count = len(unique_contact_ids)
     unique_contact_count_prev = len(unique_contact_ids_prev)
-    # print('cantidad contactos = ', unique_contact_count)
-    # print('cantidad contactos prev = ', unique_contact_count_prev)
 
     # Convertir ambas listas a conjuntos y encontrar la intersección
     current_set = set(unique_contact_ids)
@@ -124,3 +88,70 @@ def fetch_kpis(request):
         kpi_results.append(response.json())
 
     return JsonResponse(kpi_results, safe=False)
+
+def get_lead_status_distribution(request):
+    start_date_str = request.GET.get('start_date', None)
+    end_date_str = request.GET.get('end_date', None)
+
+    try:
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM:SS'}, status=400)
+
+    if not start_date or not end_date:
+        return JsonResponse({'error': 'Missing start_date or end_date'}, status=400)
+
+    # Realizar la agregación para contar los estados
+    pipeline = [
+        {"$match": {"createdAt": {"$gte": start_date, "$lte": end_date}}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+
+    result = Lead.objects.aggregate(pipeline)
+    
+    # Convertir el resultado a un diccionario
+    status_counts = {item['_id']: item['count'] for item in result}
+    total_leads = sum(status_counts.values())
+
+    # Calcular los porcentajes
+    status_percentages = {status: (count / total_leads) * 100 for status, count in status_counts.items()}
+
+    return JsonResponse(status_percentages)
+
+def get_average_worth_transaction(request):
+    start_date_str = request.GET.get('start_date', None)
+    end_date_str = request.GET.get('end_date', None)
+
+    try:
+        start_date = datetime.fromisoformat(start_date_str) if start_date_str else None
+        end_date = datetime.fromisoformat(end_date_str) if end_date_str else None
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM:SS'}, status=400)
+
+    if not start_date or not end_date:
+        return JsonResponse({'error': 'Missing start_date or end_date'}, status=400)
+
+    # Realizar la agrupacion de detalles por venta, y calcula su valor total
+    pipeline = [
+        {"$match": {"invoiceDate": {"$gte": start_date, "$lte": end_date}}},
+        {"$group": {
+            "_id": "$contactId",
+            "totalAmount": {"$sum": {"$multiply": ["$unitPrice", "$quantity"]}}
+        }}
+    ]
+
+    result = SaleDetail.objects.aggregate(pipeline)
+    
+    # Convertir el resultado a un diccionario
+    client_totals = {item['_id']: item['totalAmount'] for item in result}
+    total_worth = sum(client_totals.values())
+    client_count = len(client_totals)
+
+    # Calcular valor promedio de clientes
+    if client_count > 0:
+        average_worth = total_worth / client_count
+    else:
+        average_worth = 0
+
+    return JsonResponse({'average_worth': average_worth})
